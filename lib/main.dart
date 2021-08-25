@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:developer';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart' show timeDilation;
 import 'package:flutter_gen/gen_l10n/gallery_localizations.dart';
 import 'package:flutter_localized_locales/flutter_localized_locales.dart';
@@ -19,14 +22,18 @@ export 'package:gallery/data/demos.dart' show pumpDeferredLibraries;
 
 void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
+  // debugPaintSizeEnabled = true;
   runApp(const GalleryApp());
 }
 
 class GalleryApp extends StatelessWidget {
-  const GalleryApp({
+  // Dart 构造函数有如下特点（https://juejin.cn/post/6844903773094019086#heading-23）
+  // 1.可以定义命名构造函数
+  // 2.可以在函数体运行之前初始化实例变量
+  const GalleryApp({ // 构造函数的命名参数， 也可通过位置参数 fun(pa1, [pa2 = true]) 表示
     Key key,
-    this.initialRoute,
-    this.isTestMode = false,
+    this.initialRoute, // final 的变量只可被赋值一次
+    this.isTestMode = false, // 默认参数值
   }) : super(key: key);
 
   final bool isTestMode;
@@ -36,13 +43,13 @@ class GalleryApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ModelBinding(
       initialModel: GalleryOptions(
-        themeMode: ThemeMode.system,
-        textScaleFactor: systemTextScaleFactorOption,
-        customTextDirection: CustomTextDirection.localeBased,
-        locale: null,
-        timeDilation: timeDilation,
-        platform: defaultTargetPlatform,
-        isTestMode: isTestMode,
+        themeMode: ThemeMode.system, // 系统的主题
+        textScaleFactor: systemTextScaleFactorOption, // 系统字体缩放默认的值
+        customTextDirection: CustomTextDirection.localeBased, // 文本默认的方向
+        locale: null, // 本地语言环境
+        timeDilation: timeDilation, // 时间扩张（动画的执行控制器，方便开发调试动画过程）
+        platform: defaultTargetPlatform, // 运行环境标识
+        isTestMode: isTestMode, // 默认是非调试模式(debug无)
       ),
       child: Builder(
         builder: (context) {
@@ -74,6 +81,7 @@ class GalleryApp extends StatelessWidget {
               deviceLocale = locale;
               return locale;
             },
+            // 全局路由控制的钩子，只会对命名的路由生效
             onGenerateRoute: RouteConfiguration.onGenerateRoute,
           );
         },
@@ -89,7 +97,7 @@ class RootPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ApplyTextOptions(
+    return const ApplyTextOptions( // 只是套了一个无状态的widget去处理文本的渲染方式而已
       child: SplashPage(
         child: Backdrop(),
       ),

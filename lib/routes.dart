@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:gallery/deferred_widget.dart';
@@ -38,6 +40,7 @@ class Path {
   final PathWidgetBuilder builder;
 }
 
+// 路由配置表
 class RouteConfiguration {
   /// List of [Path] to for route matching. When a named route is pushed with
   /// [Navigator.pushNamed], the route name is matched with the [Path.pattern]
@@ -91,8 +94,9 @@ class RouteConfiguration {
         study: starter_app.StarterApp(),
       ),
     ),
-    Path(
-      r'^/',
+    Path(  // 默认的根页面
+      r'^/', // 这里有个关键的信息 r 前缀的字符串是为了反正 / | 这样的字符会被进行转译
+      // 所有r的目的是为了保证 "原始字符串"
       (context, match) => const RootPage(),
     ),
   ];
@@ -104,10 +108,11 @@ class RouteConfiguration {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     for (final path in paths) {
       final regExpPattern = RegExp(path.pattern);
+      //  'r'^/demo/([\w-]+)$',
       if (regExpPattern.hasMatch(settings.name)) {
         final firstMatch = regExpPattern.firstMatch(settings.name);
         final match = (firstMatch.groupCount == 1) ? firstMatch.group(1) : null;
-        if (kIsWeb) {
+        if (kIsWeb) { // 如果是web的话去掉转场动画
           return NoAnimationMaterialPageRoute<void>(
             builder: (context) => path.builder(context, match),
             settings: settings,

@@ -33,6 +33,11 @@ set deviceLocale(Locale locale) {
   _deviceLocale ??= locale;
 }
 
+/// 构建options的时候，出现三种方式
+/// 1. this.themeMode 代表一次初始化且不会改变的简易写法(一般都是必选的参数)
+/// 2. double textScaleFactor 这种是一种「哨兵值」 为可选的参数  https://dart.dev/guides/language/effective-dart/design#avoid-mandatory-parameters-that-accept-a-special-no-argument-value
+/// 3. _textScaleFactor = textScaleFactor 构造函数执行前的赋值操作
+/// 该类主要是对 GalleryOptions的参数生成，获取，更新等操作
 class GalleryOptions {
   const GalleryOptions({
     this.themeMode,
@@ -46,7 +51,7 @@ class GalleryOptions {
         _locale = locale;
 
   final ThemeMode themeMode;
-  final double _textScaleFactor;
+  final double _textScaleFactor; // sentinel value
   final CustomTextDirection customTextDirection;
   final Locale _locale;
   final double timeDilation;
@@ -60,8 +65,9 @@ class GalleryOptions {
     if (_textScaleFactor == systemTextScaleFactorOption) {
       return useSentinel
           ? systemTextScaleFactorOption
+      // 从设备中找到配置的文本缩放比例
           : MediaQuery.of(context).textScaleFactor;
-    } else {
+    } else { // 默认情况下 缩放比例为1（不缩放）
       return _textScaleFactor;
     }
   }
@@ -151,6 +157,7 @@ class GalleryOptions {
         isTestMode,
       );
 
+  /// 从继承结构中找到ModelBind组件，获取到options(就是子类需要访问的顶层共享的数据)
   static GalleryOptions of(BuildContext context) {
     final scope =
         context.dependOnInheritedWidgetOfExactType<_ModelBindingScope>();
@@ -166,6 +173,7 @@ class GalleryOptions {
 
 // Applies text GalleryOptions to a widget
 class ApplyTextOptions extends StatelessWidget {
+  // 无实际action的构造函数
   const ApplyTextOptions({Key key, @required this.child}) : super(key: key);
 
   final Widget child;
@@ -176,6 +184,10 @@ class ApplyTextOptions extends StatelessWidget {
     final textDirection = options.resolvedTextDirection();
     final textScaleFactor = options.textScaleFactor(context);
 
+    // 套了叫MediaQuery的widget来控制子树种widget渲染方式
+    // 常见的 size, textScaleFactor
+    // 某些局部的N个组件需要字体加粗，但是又不想挨着改，就可以套一层MediaQuery来解决
+    // 在这里 只是关心文本的缩放比例
     Widget widget = MediaQuery(
       data: MediaQuery.of(context).copyWith(
         textScaleFactor: textScaleFactor,
@@ -184,6 +196,7 @@ class ApplyTextOptions extends StatelessWidget {
     );
     return textDirection == null
         ? widget
+        // 在套一层处理父到子的文本方向的widget
         : Directionality(
             textDirection: textDirection,
             child: widget,
