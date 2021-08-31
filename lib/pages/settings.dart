@@ -48,6 +48,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _closeSettingId(AnimationStatus status) {
+    // 当清空动画完成的时候，当前记录的展开的itemId置空
     if (status == AnimationStatus.dismissed) {
       setState(() {
         _expandedSettingId = null;
@@ -60,8 +61,13 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
 
     // When closing settings, also shrink expanded setting.
+    // state 访问 widget的成员变量，用widget即可，因为有泛型来控制了入参的类型
+    // 监听动画的结果
     widget.animationController.addStatusListener(_closeSettingId);
 
+    // 这里通过一个animationController来控制内外的各个动画元素，使得不同元素之间能通过时间进度绑定起来
+    // 0~0.4 的时间执行settingPage的rect动画
+    // 0.5~1 的时间执行settingItem的动画
     _staggerSettingsItemsAnimation = CurvedAnimation(
       parent: widget.animationController,
       curve: const Interval(
@@ -75,6 +81,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void dispose() {
     super.dispose();
+    // 监听事件，必须解绑
     widget.animationController.removeStatusListener(_closeSettingId);
   }
 
@@ -138,9 +145,12 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    // app的全局options配置（文字大小，字体方向等）
     final options = GalleryOptions.of(context);
+    // 是否桌面的判断
     final isDesktop = isDisplayDesktop(context);
 
+    // 依次创建每个设置项展开的子item数据集相关配置生成的组件
     final settingsListItems = [
       SettingsListItem<double>(
         title: GalleryLocalizations.of(context).settingsTextScaling,
@@ -167,6 +177,7 @@ class _SettingsPageState extends State<SettingsPage> {
         }),
         onOptionChanged: (newTextScale) => GalleryOptions.update(
           context,
+          // options只更新了 textScale
           options.copyWith(textScaleFactor: newTextScale),
         ),
         onTapSetting: () => onTapSetting(_ExpandableSetting.textScale),
@@ -255,6 +266,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Material(
       color: colorScheme.secondaryVariant,
       child: Padding(
+        // 移动端上有64px的gallery商标高度
         padding: isDesktop
             ? EdgeInsets.zero
             : const EdgeInsets.only(
@@ -279,12 +291,14 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               if (isDesktop)
                 ...settingsListItems
+                // 移动端的处理，包括的各种动画
               else ...[
                 _AnimateSettingsListItems(
                   animation: _staggerSettingsItemsAnimation,
                   children: settingsListItems,
                 ),
                 const SizedBox(height: 16),
+                /// thickness决定粗细，height 决定高度
                 Divider(thickness: 2, height: 0, color: colorScheme.background),
                 const SizedBox(height: 12),
                 const SettingsAbout(),
@@ -385,15 +399,14 @@ class _SettingsLink extends StatelessWidget {
           horizontal: isDesktop ? 24 : 32,
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           children: [
             Icon(
               icon,
               color: colorScheme.onSecondary.withOpacity(0.5),
               size: 24,
             ),
-            Flexible(
-              child: Padding(
+            Padding(
                 padding: const EdgeInsetsDirectional.only(
                   start: 16,
                   top: 12,
@@ -407,7 +420,6 @@ class _SettingsLink extends StatelessWidget {
                   textAlign: isDesktop ? TextAlign.end : TextAlign.start,
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -446,6 +458,7 @@ class _AnimateSettingsListItems extends StatelessWidget {
       padding: EdgeInsets.only(top: topPaddingTween.animate(animation).value),
       child: Column(
         children: [
+          // 通过AnimatedBuilder对每个child执行动画
           for (Widget child in children)
             AnimatedBuilder(
               animation: animation,

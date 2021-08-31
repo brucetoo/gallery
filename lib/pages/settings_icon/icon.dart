@@ -13,12 +13,14 @@ class SettingsIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 自定义绘制icon
     return CustomPaint(
       painter: _SettingsIconPainter(time: time, context: context),
     );
   }
 }
 
+/// TODO 有时间在看这个自定义paint的绘制逻辑
 class _SettingsIconPainter extends CustomPainter {
   _SettingsIconPainter({@required this.time, @required this.context});
 

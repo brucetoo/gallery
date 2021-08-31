@@ -40,6 +40,7 @@ class _AboutDialog extends StatelessWidget {
         GalleryLocalizations.of(context).aboutDialogDescription(repoText);
     final repoLinkIndex = seeSource.indexOf(repoText);
     final repoLinkIndexEnd = repoLinkIndex + repoText.length;
+    // 文本的分拆显示处理
     final seeSourceFirst = seeSource.substring(0, repoLinkIndex);
     final seeSourceSecond = seeSource.substring(repoLinkIndexEnd);
 
@@ -49,9 +50,12 @@ class _AboutDialog extends StatelessWidget {
       content: Container(
         constraints: const BoxConstraints(maxWidth: 400),
         child: Column(
+          // 交叉轴(横轴) 占据布局位置 左对齐
           crossAxisAlignment: CrossAxisAlignment.start,
+          // 主轴(纵轴) 以最小来决定空白占据的大小
           mainAxisSize: MainAxisSize.min,
           children: [
+            // 异步获取数据 future 用snapshot承载
             FutureBuilder(
               future: getVersionNumber(),
               builder: (context, snapshot) => Text(
@@ -68,13 +72,16 @@ class _AboutDialog extends StatelessWidget {
                     text: seeSourceFirst,
                   ),
                   TextSpan(
+                    // 类似于js中的merge操作，快速基于一个style创建新的style
                     style: bodyTextStyle.copyWith(
                       color: colorScheme.primary,
                     ),
                     text: repoText,
+                    // TextSpan绑定点击事件
                     recognizer: TapGestureRecognizer()
                       ..onTap = () async {
                         const url = 'https://github.com/flutter/gallery/';
+                        // url_launcher
                         if (await canLaunch(url)) {
                           await launch(
                             url,
@@ -122,6 +129,7 @@ class _AboutDialog extends StatelessWidget {
         ),
         TextButton(
           onPressed: () {
+            // 关闭Dialog直接pop即可
             Navigator.pop(context);
           },
           child: Text(MaterialLocalizations.of(context).closeButtonLabel),

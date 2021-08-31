@@ -99,13 +99,10 @@ class SettingsListItem<T> extends StatefulWidget {
 
 class _SettingsListItemState<T> extends State<SettingsListItem<T>>
     with SingleTickerProviderStateMixin {
-  static final Animatable<double> _easeInTween =
-      CurveTween(curve: Curves.easeIn);
-  static const _expandDuration = Duration(milliseconds: 150);
   AnimationController _controller;
-  Animation<double> _childrenHeightFactor;
-  Animation<double> _headerChevronRotation;
-  Animation<double> _headerSubtitleHeight;
+  Animation<double> _childrenHeightFactor; // 子组件高度的因子
+  Animation<double> _headerChevronRotation; // icon动画
+  Animation<double> _headerSubtitleHeight; // subtitle动画
   Animation<EdgeInsetsGeometry> _headerMargin;
   Animation<EdgeInsetsGeometry> _headerPadding;
   Animation<EdgeInsetsGeometry> _childrenPadding;
@@ -118,18 +115,30 @@ class _SettingsListItemState<T> extends State<SettingsListItem<T>>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(duration: _expandDuration, vsync: this);
-    _childrenHeightFactor = _controller.drive(_easeInTween);
+    _controller = AnimationController(duration: const Duration(milliseconds: 150), vsync: this);
+    // 注意！！！！！！
+    // margin,padding的动画控制，可以使用 EdgeInsetsGeometryTween
+    // minWidth/Height的变化，使用BoxConstraintsTween
+    // borderRadius的变化，使用BorderRadiusTween
+
+    // Tween.animate(controller) == controller.drive(tween) 类似
+
+    // 子高度当前变化的因子
+    _childrenHeightFactor = _controller.drive(CurveTween(curve: Curves.easeIn));
+    // icon 0 => 90°变化
     _headerChevronRotation =
         Tween<double>(begin: 0, end: 0.5).animate(_controller);
+    // 上下左右的位置变为 32 => 0
     _headerMargin = EdgeInsetsGeometryTween(
       begin: settingItemHeaderMargin,
       end: EdgeInsets.zero,
     ).animate(_controller);
+    // Tween.animate(controller) == controller.drive(tween);
     _headerPadding = EdgeInsetsGeometryTween(
       begin: const EdgeInsetsDirectional.fromSTEB(16, 10, 0, 10),
       end: const EdgeInsetsDirectional.fromSTEB(32, 18, 32, 20),
     ).animate(_controller);
+    // subtitle高度从1到0
     _headerSubtitleHeight =
         _controller.drive(Tween<double>(begin: 1.0, end: 0.0));
     _childrenPadding = EdgeInsetsGeometryTween(
@@ -145,6 +154,7 @@ class _SettingsListItemState<T> extends State<SettingsListItem<T>>
       _controller.value = 1.0;
     }
 
+    // 将配置的kv分开
     _options = widget.optionsMap.keys;
     _displayOptions = widget.optionsMap.values;
   }
@@ -196,15 +206,18 @@ class _SettingsListItemState<T> extends State<SettingsListItem<T>>
 
   @override
   Widget build(BuildContext context) {
+    // 构建时候的展开动画
     _handleExpansion();
     final theme = Theme.of(context);
 
     return AnimatedBuilder(
       animation: _controller.view,
       builder: _buildHeaderWithChildren,
+      // 可展开的列表UI(刚好它需要展开的动画，所有直接用AnimationBuilder来控制子组件的动画)
       child: Container(
-        constraints: const BoxConstraints(maxHeight: 384),
+        constraints: const BoxConstraints(maxHeight: 384), // 控制最大高度
         margin: const EdgeInsetsDirectional.only(start: 24, bottom: 40),
+        // 左侧的边界线
         decoration: BoxDecoration(
           border: BorderDirectional(
             start: BorderSide(
@@ -214,6 +227,7 @@ class _SettingsListItemState<T> extends State<SettingsListItem<T>>
           ),
         ),
         child: ListView.builder(
+          // listview的高度是尽可能大还是包裹住所有item为准。在ScrollView下，必须为true
           shrinkWrap: true,
           itemCount: widget.isExpanded ? _options.length : 0,
           itemBuilder: (context, index) {
@@ -225,6 +239,7 @@ class _SettingsListItemState<T> extends State<SettingsListItem<T>>
                 children: [
                   Text(
                     displayOption.title,
+                    // 这些关于style的使用，基本上都必须是在Material作为基组件下才能生效
                     style: theme.textTheme.bodyText1.copyWith(
                       color: Theme.of(context).colorScheme.onPrimary,
                     ),

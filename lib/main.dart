@@ -90,6 +90,7 @@ class GalleryApp extends StatelessWidget {
   }
 }
 
+// 默认的路由页面
 class RootPage extends StatelessWidget {
   const RootPage({
     Key key,

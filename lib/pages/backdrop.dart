@@ -17,6 +17,7 @@ const double _settingsButtonWidth = 64;
 const double _settingsButtonHeightDesktop = 56;
 const double _settingsButtonHeightMobile = 40;
 
+/// 首页 = 设置页面 + 主页面
 class Backdrop extends StatefulWidget {
   const Backdrop({
     Key key,
@@ -34,7 +35,9 @@ class Backdrop extends StatefulWidget {
 class _BackdropState extends State<Backdrop> with TickerProviderStateMixin {
   AnimationController _settingsPanelController;
   AnimationController _iconController;
+  // FocusNode来捕捉监听TextField的焦点获取与失去
   FocusNode _settingsPageFocusNode;
+  // 监听单个值的变化，需要配合ValueListenableBuilder组件来使用
   ValueNotifier<bool> _isSettingsOpenNotifier;
   Widget _settingsPage;
   Widget _homePage;
@@ -42,6 +45,7 @@ class _BackdropState extends State<Backdrop> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    // 设置页面的动画控制器，需要和animator绑定起来
     _settingsPanelController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 200),
@@ -52,6 +56,7 @@ class _BackdropState extends State<Backdrop> with TickerProviderStateMixin {
     );
     _settingsPageFocusNode = FocusNode();
     _isSettingsOpenNotifier = ValueNotifier(false);
+    // 同时构建setting和home页面
     _settingsPage = widget.settingsPage ??
         SettingsPage(
           animationController: _settingsPanelController,
@@ -61,6 +66,7 @@ class _BackdropState extends State<Backdrop> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    // super之前dispose
     _settingsPanelController.dispose();
     _iconController.dispose();
     _settingsPageFocusNode.dispose();
@@ -77,6 +83,7 @@ class _BackdropState extends State<Backdrop> with TickerProviderStateMixin {
       _settingsPanelController.forward();
       _iconController.forward();
     }
+    // setting页面显示与否的标记切换
     _isSettingsOpenNotifier.value = !_isSettingsOpenNotifier.value;
   }
 
@@ -87,7 +94,7 @@ class _BackdropState extends State<Backdrop> with TickerProviderStateMixin {
       end: const RelativeRect.fromLTRB(0, 0, 0, 0),
     ).animate(
       CurvedAnimation(
-        parent: _settingsPanelController,
+        parent: _settingsPanelController, // 动画的控制器
         curve: const Interval(
           0.0,
           0.4,
@@ -101,11 +108,17 @@ class _BackdropState extends State<Backdrop> with TickerProviderStateMixin {
       BoxConstraints constraints) {
     return RelativeRectTween(
       begin: const RelativeRect.fromLTRB(0, 0, 0, 0),
+      // 此处加galleryHeaderHeight会在setting底部留白，可以去掉
+      // end: RelativeRect.fromLTRB(
+      //   0,
+      //   constraints.biggest.height - galleryHeaderHeight,
+      //   0,
+      //   -galleryHeaderHeight,
       end: RelativeRect.fromLTRB(
         0,
-        constraints.biggest.height - galleryHeaderHeight,
+        constraints.biggest.height,
         0,
-        -galleryHeaderHeight,
+        0,
       ),
     ).animate(
       CurvedAnimation(
@@ -122,23 +135,28 @@ class _BackdropState extends State<Backdrop> with TickerProviderStateMixin {
   Widget _buildStack(BuildContext context, BoxConstraints constraints) {
     final isDesktop = isDisplayDesktop(context);
 
+    // ValueListenableBuilder 包裹在此存在的意义是当setting打开或者关闭的时候
+    // 需要将焦点在 settingPage 和 homePage 之间主动切换
+    // 用于监听某个值的变化后执行不同的build逻辑
     final Widget settingsPage = ValueListenableBuilder<bool>(
       valueListenable: _isSettingsOpenNotifier,
+      // 第二个参数是根据泛型中的bool来决定的类型，代表是否setting页面打开
       builder: (context, isSettingsOpen, child) {
         return ExcludeSemantics(
           excluding: !isSettingsOpen,
+          // 这坨监听键盘的事件的炒作，委实没看到应用的场景
           child: isSettingsOpen
               ? RawKeyboardListener(
                   includeSemantics: false,
                   focusNode: _settingsPageFocusNode,
                   onKey: (event) {
                     if (event.logicalKey == LogicalKeyboardKey.escape) {
-                      _toggleSettings();
+                      _toggleSettings(); // setting value变化后 会执行rebuild
                     }
                   },
-                  child: FocusScope(child: _settingsPage),
+                  child: FocusScope(child: _settingsPage), // setting 显示时，聚焦焦点
                 )
-              : ExcludeFocus(child: _settingsPage),
+              : ExcludeFocus(child: _settingsPage), // setting 隐藏后移除焦点
         );
       },
     );
@@ -148,14 +166,19 @@ class _BackdropState extends State<Backdrop> with TickerProviderStateMixin {
       builder: (context, isSettingsOpen, child) {
         return ExcludeSemantics(
           excluding: isSettingsOpen,
+          // 控制焦点变化的时候需要这个来配合
           child: FocusTraversalGroup(child: _homePage),
         );
       },
     );
 
+    // 这个很厉害，是在不使用AppBar的情况下 直接改变stateBar的文本颜色
+    // 如果存在AppBar可以通过brightness熟悉改变
     return AnnotatedRegion<SystemUiOverlayStyle>(
+      // 根据主题的配置来确定系统栏的颜色
       value: GalleryOptions.of(context).resolvedSystemUiOverlayStyle(),
       child: Stack(
+        // 在数值中 还能有条件判断的写法，厉害
         children: [
           if (!isDesktop) ...[
             // Slides the settings page up and down from the top of the
@@ -231,6 +254,7 @@ class _BackdropState extends State<Backdrop> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // 使用LayoutBuilder的原因是希望获取整个布局的宽高？
     return LayoutBuilder(
       builder: _buildStack,
     );
@@ -279,7 +303,8 @@ class _SettingsIcon extends AnimatedWidget {
                 isSettingsOpenNotifier.value & !animationController.isAnimating
                     ? Colors.transparent
                     : Theme.of(context).colorScheme.secondaryVariant,
-            clipBehavior: Clip.antiAlias,
+            clipBehavior: Clip.antiAlias, // 圆边的抗锯齿
+            // InkWell组件是封装了各种事件的组件，必须在Material中使用
             child: InkWell(
               onTap: () {
                 toggleSettings();

@@ -139,7 +139,7 @@ class _SplashPageState extends State<SplashPage>
         child: LayoutBuilder(
           builder: (context, constraints) {
             final animation = _getPanelAnimation(context, constraints);
-            // widget代表自身 下面的child
+            // widget代表自身 下面的child，具体是指[Backdrop]
             var frontLayer = widget.child;
             print('splash is visible = $_isSplashVisible - $frontLayer');
 
@@ -225,6 +225,7 @@ class _SplashBackLayer extends StatelessWidget {
     );
 
     Widget child;
+    // 处理闪屏存在和不存在在，pc和mobile的布局异同
     if (isSplashCollapsed) {
       child = isDisplayDesktop(context)
           ? Padding(

@@ -106,12 +106,14 @@ class RouteConfiguration {
   /// [WidgetsApp.onGenerateRoute] to make use of the [paths] for route
   /// matching.
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
+    // 路由匹配，页面跳转
     for (final path in paths) {
       final regExpPattern = RegExp(path.pattern);
       //  'r'^/demo/([\w-]+)$',
       if (regExpPattern.hasMatch(settings.name)) {
         final firstMatch = regExpPattern.firstMatch(settings.name);
         final match = (firstMatch.groupCount == 1) ? firstMatch.group(1) : null;
+        // 这个判断就很厉害了，利用了js中无int的概念，0 和 0.00 不等，但是dart环境是相等的
         if (kIsWeb) { // 如果是web的话去掉转场动画
           return NoAnimationMaterialPageRoute<void>(
             builder: (context) => path.builder(context, match),
@@ -143,6 +145,17 @@ class NoAnimationMaterialPageRoute<T> extends MaterialPageRoute<T> {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
+    // 直接返回child, 就屏蔽了转场动画，厉害```
+    return child;
+  }
+}
+
+class NoAnimation<T> extends MaterialPageRoute<T> {
+  NoAnimation({ @required WidgetBuilder builder,
+    RouteSettings settings,}) : super(builder: builder, settings: settings);
+
+  @override
+  Widget buildTransitions(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
     return child;
   }
 }
