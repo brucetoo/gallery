@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +11,7 @@ import 'package:flutter_gen/gen_l10n/gallery_localizations.dart';
 import 'package:gallery/constants.dart';
 import 'package:gallery/data/gallery_options.dart';
 import 'package:gallery/layout/adaptive.dart';
+import 'package:gallery/main.dart';
 import 'package:gallery/pages/home.dart';
 import 'package:gallery/pages/settings.dart';
 import 'package:gallery/pages/settings_icon/icon.dart' as settings_icon;
@@ -35,8 +38,10 @@ class Backdrop extends StatefulWidget {
 class _BackdropState extends State<Backdrop> with TickerProviderStateMixin {
   AnimationController _settingsPanelController;
   AnimationController _iconController;
+
   // FocusNode来捕捉监听TextField的焦点获取与失去
   FocusNode _settingsPageFocusNode;
+
   // 监听单个值的变化，需要配合ValueListenableBuilder组件来使用
   ValueNotifier<bool> _isSettingsOpenNotifier;
   Widget _settingsPage;
@@ -247,6 +252,7 @@ class _BackdropState extends State<Backdrop> with TickerProviderStateMixin {
             toggleSettings: _toggleSettings,
             isSettingsOpenNotifier: _isSettingsOpenNotifier,
           ),
+          _TestIcon(),
         ],
       ),
     );
@@ -322,5 +328,37 @@ class _SettingsIcon extends AnimatedWidget {
         ),
       ),
     );
+  }
+}
+
+class _TestIcon extends StatelessWidget {
+  _TestIcon({Key key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final titleStyle = theme.textTheme.headline5.copyWith(color: Colors.white);
+    return Align(
+        alignment: AlignmentDirectional.bottomCenter,
+        child: SizedBox(
+            width: 60,
+            height: 60,
+            child: Material(
+              borderRadius: const BorderRadius.all(Radius.circular(10)),
+              color: Colors.redAccent,
+              child: Align(
+                alignment: AlignmentDirectional.center,
+                child: InkWell(
+                  onTap: () {
+                    // 测试_Carousel动画
+                    GalleryApp.of(context).bus.fire(ClickTestEvent());
+                  },
+                  child: Text('CLICK',
+                    textAlign: TextAlign.center,
+                    style: titleStyle,
+                  ),
+                ),
+              ),
+            )));
   }
 }

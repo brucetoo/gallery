@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:developer';
 
+import 'package:event_bus/event_bus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart' show timeDilation;
 import 'package:flutter_gen/gen_l10n/gallery_localizations.dart';
 import 'package:flutter_localized_locales/flutter_localized_locales.dart';
@@ -23,21 +22,26 @@ export 'package:gallery/data/demos.dart' show pumpDeferredLibraries;
 void main() {
   GoogleFonts.config.allowRuntimeFetching = false;
   // debugPaintSizeEnabled = true;
-  runApp(const GalleryApp());
+  runApp(GalleryApp());
 }
 
 class GalleryApp extends StatelessWidget {
   // Dart 构造函数有如下特点（https://juejin.cn/post/6844903773094019086#heading-23）
   // 1.可以定义命名构造函数
   // 2.可以在函数体运行之前初始化实例变量
-  const GalleryApp({ // 构造函数的命名参数， 也可通过位置参数 fun(pa1, [pa2 = true]) 表示
+  GalleryApp({ // 构造函数的命名参数， 也可通过位置参数 fun(pa1, [pa2 = true]) 表示
     Key key,
     this.initialRoute, // final 的变量只可被赋值一次
-    this.isTestMode = false, // 默认参数值
-  }) : super(key: key);
+    this.isTestMode = false, // 只是内部的调试参数而已，比如categories的默认打开
+  }): super(key: key);
 
   final bool isTestMode;
   final String initialRoute;
+  final EventBus bus = EventBus();
+
+  static GalleryApp of(BuildContext context) {
+    return context.findAncestorWidgetOfExactType<GalleryApp>();
+  }
 
   @override
   Widget build(BuildContext context) {

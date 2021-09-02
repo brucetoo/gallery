@@ -178,6 +178,7 @@ class _SplashPageState extends State<SplashPage>
               );
             }
 
+            // 主页面组件是从外部传入的，与闪屏页面层叠stack布局展示
             return Stack(
               children: [
                 _SplashBackLayer(

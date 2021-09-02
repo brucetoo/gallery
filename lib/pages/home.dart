@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import 'dart:async';
+import 'dart:developer';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import 'package:gallery/data/demos.dart';
 import 'package:gallery/data/gallery_options.dart';
 import 'package:gallery/layout/adaptive.dart';
 import 'package:gallery/layout/image_placeholder.dart';
+import 'package:gallery/main.dart';
 import 'package:gallery/pages/category_list_item.dart';
 import 'package:gallery/pages/settings.dart';
 import 'package:gallery/pages/splash.dart';
@@ -32,18 +34,15 @@ const _horizontalDesktopPadding = 81.0;
 const _carouselHeightMin = 200.0 + 2 * _carouselItemMargin;
 const _desktopCardsPerPage = 4;
 
+// 自定义通知
 class ToggleSplashNotification extends Notification {}
+class ClickTestEvent {}
 
 class HomePage extends StatelessWidget {
   const HomePage({Key key}) : super(key: key);
 
-  @override
-  Widget build(BuildContext context) {
-    var carouselHeight = _carouselHeight(.7, context);
-    final isDesktop = isDisplayDesktop(context);
-    final localizations = GalleryLocalizations.of(context);
-    final studyDemos = studies(localizations);
-    final carouselCards = <Widget>[
+  List<Widget> _getCarouselCard(Map<String, GalleryDemo> studyDemos) {
+    return <Widget>[
       _CarouselCard(
         demo: studyDemos['reply'],
         asset: const AssetImage(
@@ -134,6 +133,15 @@ class HomePage extends StatelessWidget {
         studyRoute: starter_app_routes.defaultRoute,
       ),
     ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final carouselHeight = _carouselHeight(.7, context);
+    final isDesktop = isDisplayDesktop(context);
+    final localizations = GalleryLocalizations.of(context);
+    final studyDemos = studies(localizations);
+    final carouselCards = _getCarouselCard(studyDemos);
 
     if (isDesktop) {
       final desktopCategoryItems = <_DesktopCategoryItem>[
@@ -323,19 +331,24 @@ class _AnimatedHomePage extends StatefulWidget {
   _AnimatedHomePageState createState() => _AnimatedHomePageState();
 }
 
+/// RestorationMixin作用类似于Android中的onSaveInstanceState，保存临时状态（可滚动组件有关）
 class _AnimatedHomePageState extends State<_AnimatedHomePage>
     with RestorationMixin, SingleTickerProviderStateMixin {
+  // 整个listView的animation controller
   AnimationController _animationController;
   Timer _launchTimer;
+  // 记录哪些列表被展开 -- 测试的话需要配合 debug中[不保留activity]使用
   final RestorableBool _isMaterialListExpanded = RestorableBool(false);
   final RestorableBool _isCupertinoListExpanded = RestorableBool(false);
   final RestorableBool _isOtherListExpanded = RestorableBool(false);
 
+  /// 使用 RestorationMixin 必须复写 restorationId 提供新的id当前首页的restorationId
   @override
   String get restorationId => widget.restorationId;
 
   @override
   void restoreState(RestorationBucket oldBucket, bool initialRestore) {
+    // 状态的临时保存
     registerForRestoration(_isMaterialListExpanded, 'material_list');
     registerForRestoration(_isCupertinoListExpanded, 'cupertino_list');
     registerForRestoration(_isOtherListExpanded, 'other_list');
@@ -356,8 +369,10 @@ class _AnimatedHomePageState extends State<_AnimatedHomePage>
       _animationController.value = 1.0;
     } else {
       // Start our animation halfway through the splash page animation.
+      // 一半的执行时间后，再进行内部动画
       _launchTimer = Timer(
         const Duration(
+          // ~/ 返回一个整数型的触发，对比 /
           milliseconds: splashPageAnimationDurationInMilliseconds ~/ 2,
         ),
         () {
@@ -369,9 +384,12 @@ class _AnimatedHomePageState extends State<_AnimatedHomePage>
 
   @override
   void dispose() {
+    // 动画控制器释放
     _animationController.dispose();
+    // timer 需要先cancel再置空
     _launchTimer?.cancel();
     _launchTimer = null;
+    // 临时状态也需要释放
     _isMaterialListExpanded.dispose();
     _isCupertinoListExpanded.dispose();
     _isOtherListExpanded.dispose();
@@ -462,6 +480,7 @@ class _AnimatedHomePageState extends State<_AnimatedHomePage>
           child: GestureDetector(
             onVerticalDragEnd: (details) {
               if (details.velocity.pixelsPerSecond.dy > 200) {
+                // 垂直滚动大于200是显示闪屏页面
                 ToggleSplashNotification().dispatch(context);
               }
             },
@@ -635,14 +654,16 @@ class _AnimatedCarousel extends StatelessWidget {
           end: 0.0,
         ).animate(
           CurvedAnimation(
-            parent: controller,
+            parent: controller, // 每一个animation都应该有一个对应的controller
             curve: const Interval(
               0.200,
               0.800,
               curve: Curves.ease,
             ),
           ),
-        ),
+        )..addListener(() {
+            // log('----${controller.value}');
+          }),
         super(key: key);
 
   final Widget child;
@@ -651,19 +672,30 @@ class _AnimatedCarousel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 通过eventBus来通信
+    GalleryApp.of(context).bus.on<ClickTestEvent>().listen((event) {
+      controller.reverse();
+      Timer(const Duration(seconds: 2), () => controller.forward());
+    });
     return LayoutBuilder(builder: (context, constraints) {
+      // NOTE!!!!!
+      // 这里使用Stack的目的因为 Position的变化只能在Stack才有效且有意义，其他部件组件中都不行
+      // 加SizedBox的目的防止size.isFinite != true 也就是说size 是有限的
       return Stack(
         children: [
+          // 这个目的是为了确保stack的高度是已知的
           SizedBox(height: _carouselHeight(.4, context)),
           AnimatedBuilder(
-            animation: controller,
+            animation: controller, // 绑定一个animationController
             builder: (context, child) {
+              // 动态改变start位置
               return PositionedDirectional(
                 start: constraints.maxWidth * startPositionAnimation.value,
                 child: child,
               );
             },
             child: SizedBox(
+              // 这个目的是为了确保child的最高高度是固定的
               height: _carouselHeight(.4, context),
               width: constraints.maxWidth,
               child: child,
@@ -735,7 +767,7 @@ class _Carousel extends StatefulWidget {
 
 class _CarouselState extends State<_Carousel>
     with RestorationMixin, SingleTickerProviderStateMixin {
-  PageController _controller;
+  PageController _pageController;
 
   final RestorableInt _currentPage = RestorableInt(0);
 
@@ -750,12 +782,14 @@ class _CarouselState extends State<_Carousel>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_controller == null) {
+    if (_pageController == null) {
       // The viewPortFraction is calculated as the width of the device minus the
       // padding.
       final width = MediaQuery.of(context).size.width;
       const padding = (_horizontalPadding * 2) - (_carouselItemMargin * 2);
-      _controller = PageController(
+      // const padding = (_horizontalPadding * 2);
+      // 初始化的页面为
+      _pageController = PageController(
         initialPage: _currentPage.value,
         viewportFraction: (width - padding) / width,
       );
@@ -764,18 +798,19 @@ class _CarouselState extends State<_Carousel>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _pageController.dispose();
     _currentPage.dispose();
     super.dispose();
   }
 
-  Widget builder(int index) {
+  Widget _itemBuilder(int index) {
     final carouselCard = AnimatedBuilder(
-      animation: _controller,
+      animation: _pageController,
       builder: (context, child) {
         double value;
-        if (_controller.position.haveDimensions) {
-          value = _controller.page - index;
+        // 如果page_view的某个page渲染出来
+        if (_pageController.position.haveDimensions) {
+          value = _pageController.page - index;
         } else {
           // If haveDimensions is false, use _currentPage to calculate value.
           value = (_currentPage.value - index).toDouble();
@@ -783,11 +818,16 @@ class _CarouselState extends State<_Carousel>
         // We want the peeking cards to be 160 in height and 0.38 helps
         // achieve that.
         value = (1 - (value.abs() * .38)).clamp(0, 1).toDouble();
+        // value值在曲线差值器上进行映射转换 当前index的左右值是 0.62 ~ 1 ~ 0.62
+        // 其他的可不考虑反正也看不见
         value = Curves.easeOut.transform(value);
 
         return Center(
           child: Transform(
+            // 改变高度分别延 x, y, z轴缩放，如果是负，则反过来
+            // 这里是需要scale Y（高度），所以没有用Transform.scale
             transform: Matrix4.diagonal3Values(1.0, value, 1.0),
+            // 缩放后需要保证居中
             alignment: Alignment.center,
             child: child,
           ),
@@ -796,15 +836,17 @@ class _CarouselState extends State<_Carousel>
       child: widget.children[index],
     );
 
+    // log('carouselCard $index} = $carouselCard ${_currentPage.value}');
     // We only want the second card to be animated.
-    if (index == 1) {
-      return _AnimatedCarouselCard(
-        controller: widget.animationController,
-        child: carouselCard,
-      );
-    } else {
-      return carouselCard;
-    }
+    return carouselCard;
+    // if (index == 1) {
+    //   return _AnimatedCarouselCard(
+    //     controller: widget.animationController,
+    //     child: carouselCard,
+    //   );
+    // } else {
+    //   return carouselCard;
+    // }
   }
 
   @override
@@ -819,9 +861,9 @@ class _CarouselState extends State<_Carousel>
             _currentPage.value = value;
           });
         },
-        controller: _controller,
+        controller: _pageController,
         itemCount: widget.children.length,
-        itemBuilder: (context, index) => builder(index),
+        itemBuilder: (context, index) => _itemBuilder(index),
         allowImplicitScrolling: true,
       ),
     );
@@ -1030,7 +1072,7 @@ class _DesktopPageButton extends StatelessWidget {
 }
 
 class _CarouselCard extends StatelessWidget {
-  const _CarouselCard({
+  _CarouselCard({
     Key key,
     this.demo,
     this.asset,
@@ -1053,21 +1095,27 @@ class _CarouselCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final isDark = Theme.of(context).colorScheme.brightness == Brightness.dark;
+    // 这里asset虽然看起来像是重复定义,但由于this.asset的访问存在，所以没有
     final asset = isDark ? assetDark : this.asset;
     final assetColor = isDark ? assetDarkColor : this.assetColor;
     final textColor = isDark ? Colors.white.withOpacity(0.87) : this.textColor;
-
-    return Container(
+    return  Container(
       // Makes integration tests possible.
+      // 生产唯一的key
       key: ValueKey(demo.describe),
+      // color: Colors.purple,
+      // 添加margin的方式
       margin:
-          EdgeInsets.all(isDisplayDesktop(context) ? 0 : _carouselItemMargin),
+      EdgeInsets.all(isDisplayDesktop(context) ? 0 : _carouselItemMargin),
+      // 这里使用 Material 而不是 一般的Container啥的来进行decoration，是为了
+      // 一些属性的直接使用，比如 shape, elevation
       child: Material(
-        elevation: 4,
+        elevation: 4, // z轴的阴影
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () {
+            // 可状态保存的路由页面的push
             Navigator.of(context).restorablePushNamed(studyRoute);
           },
           child: Stack(
@@ -1076,10 +1124,10 @@ class _CarouselCard extends StatelessWidget {
               if (asset != null)
                 FadeInImagePlaceholder(
                   image: asset,
-                  placeholder: Container(
+                  placeholder: Container( // 加载过程中的组件
                     color: assetColor,
                   ),
-                  child: Ink.image(
+                  child: Ink.image( // 自定义图片显示控件，有material效果
                     image: asset,
                     fit: BoxFit.cover,
                   ),
